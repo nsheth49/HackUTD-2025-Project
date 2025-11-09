@@ -1,7 +1,5 @@
-import time
 from bs4 import BeautifulSoup
 import requests
-import pprint 
 
 
 TOYOTA_URL = "https://www.toyota.com/all-vehicles/"
