@@ -106,34 +106,45 @@ tools = [
     }
 ]
 
-@main.route("/api/chat", methods=['GET'])
-def call_tool(tool_name, args):
-    """Execute the appropriate tool based on name and arguments"""
-    try:
-        if tool_name == "get_financial_information":
-            return get_financial_information(args["user_id"])
-        elif tool_name == "find_cars":
-            return find_cars(
-                car_type=args.get("car_type"),
-                max_price=args.get("max_price"),
-                make_year=args.get("make_year"),
-                powertrain=args.get("powertrain")
+@main.route("/api/chat", methods=["POST"])
+def chat_api():
+    data = request.json
+    user_id = data.get("user_id")
+    user_message = data.get("message")
+
+    if not user_id or not user_message:
+        return jsonify({"error": "user_id and message are required"}), 400
+
+    # Create new session if none exists
+    if user_id not in sessions:
+        sessions[user_id] = model.start_chat(history=[])
+
+    chat_session = sessions[user_id]
+
+    # Send user message
+    response = chat_session.send_message(user_message)
+
+    # If model triggers tool call
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, "function_call") and part.function_call:
+            tool_name = part.function_call.name
+            args = dict(part.function_call.args)
+
+            tool_result = call_tool(tool_name, args)
+
+            # Send tool result back
+            response = chat_session.send_message(
+                genai.protos.Content(parts=[
+                    genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=tool_name,
+                            response={"result": tool_result}
+                        )
+                    )
+                ])
             )
-        elif tool_name == "find_toyota_dealerships":
-            return find_toyota_dealerships(
-                address=args["address"],
-                radius=args.get("radius", 8000)
-            )
-        elif tool_name == "financialPlan":
-            return financialPlan(
-                args["typeOfPayment"],
-                args["userId"],
-                *args["price"]
-            )
-        else:
-            return {"error": f"Unknown tool {tool_name}"}
-    except Exception as e:
-        return {"error": f"Tool execution failed: {str(e)}"}
+
+    return jsonify({"reply": response.text})
 
 # Initialize the model with tools
 model = genai.GenerativeModel(
