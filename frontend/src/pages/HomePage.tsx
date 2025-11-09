@@ -234,20 +234,33 @@ export default function HomePage() {
     await saveMessages(currentChatId, updatedMessages);
 
     // Simulate AI response (replace with actual AI API call later)
-    setTimeout(async () => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I'm here to help you with your financial questions! This is a demo response. In the full version, I would provide detailed financial guidance based on your query and your financial profile.",
-        sender: "ai",
-        timestamp: new Date()
-      };
-      
-      const finalMessages = [...updatedMessages, aiResponse];
-      setMessages(finalMessages);
-      
-      // Save AI response
-      await saveMessages(currentChatId, finalMessages);
-    }, 1000);
+    try {
+  const response = await fetch("http://localhost:5000/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: currentUser.uid,
+      message: userMessage.text
+    })
+  });
+
+  const data = await response.json();
+
+  const aiMessage: Message = {
+    id: Date.now().toString(),
+    text: data.reply,
+    sender: "ai",
+    timestamp: new Date()
+  };
+
+  const finalMessages = [...updatedMessages, aiMessage];
+  setMessages(finalMessages);
+  saveMessages(currentChatId, finalMessages);
+
+} catch (error) {
+  console.error("API Error:", error);
+}
+
   };
 
   const handleNewChat = async () => {
