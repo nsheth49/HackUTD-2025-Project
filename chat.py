@@ -1,5 +1,6 @@
 import os
 import json
+from flask import Blueprint, jsonify
 import google.generativeai as genai
 from firebase_tools import (
     find_cars,
@@ -9,6 +10,7 @@ from firebase_tools import (
 )
 
 
+main = Blueprint('main', __name__)
 
 # # Configure Gemini
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -104,6 +106,7 @@ tools = [
     }
 ]
 
+@main.route("/api/chat", methods=['GET'])
 def call_tool(tool_name, args):
     """Execute the appropriate tool based on name and arguments"""
     try:
